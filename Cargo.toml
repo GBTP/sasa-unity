@@ -1,0 +1,31 @@
+[package]
+name = "sasa-unity"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0"
+
+# 固定 rev：本仓库的 FFI 封装是按这个版本的 API 写的，浮动 HEAD 会在升级时静默改签名
+[target.'cfg(target_os = "android")'.dependencies]
+sasa = { git = "https://github.com/Mivik/sasa.git", rev = "4470cd7", default-features = false, features = ["oboe"] }
+
+[target.'cfg(not(target_os = "android"))'.dependencies]
+sasa = { git = "https://github.com/Mivik/sasa.git", rev = "4470cd7", default-features = false, features = ["cpal"] }
+
+# 本地 fork：改掉上游 oboe 的 shared-stdcxx feature（详见 ../sasa/Cargo.toml 的注释）。
+# 用 patch 而不是直接写 path，是为了留住上面那个 rev —— 它标着 fork 的基线在哪。
+# Cargo 的 feature 是并集，这个开关没法从依赖方关掉，只能改 sasa 自己。
+[patch."https://github.com/Mivik/sasa.git"]
+sasa = { path = "../sasa" }
+
+[lib]
+name = "sasa_unity"
+crate-type = ["staticlib", "cdylib"]
+
+[profile.release]
+lto = "fat"
+opt-level = 3
+panic = "abort"
+# 只剥调试信息，不剥符号表：staticlib 被剥掉符号表后 Xcode 就链接不到 SasaUnity_* 了
+strip = "debuginfo"
